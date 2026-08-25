@@ -10,8 +10,8 @@ crash.log
 crash.*.log
 
 # Exclude all tfvars except the example files
-*.tfvars
-*.tfvars.json
+# *.tfvars
+# *.tfvars.json
 !*.auto.tfvars.example
 !terraform.tfvars.example
 
