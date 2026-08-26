@@ -19,7 +19,11 @@ resource "aws_subnet" "this" {
 
   map_public_ip_on_launch = coalesce(each.value.map_public_ip_on_launch, each.value.type == "public")
 
-  tags = merge({ ManagedBy = "Terraform" }, var.networking.vpc.tags, each.value.tags, {
-    Name = "${var.networking.vpc.name}-${each.key}"
+  tags = merge({
+    ManagedBy   = "Terraform"
+    Project     = var.shared_configs.project_name
+    Environment = var.shared_configs.environment
+    }, var.networking.vpc.tags, each.value.tags, {
+    Name = "${var.shared_configs.project_name}-subnet-${each.key}"
   })
 }

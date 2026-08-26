@@ -12,8 +12,12 @@ resource "aws_route_table" "this" {
     }
   }
 
-  tags = merge({ ManagedBy = "Terraform" }, var.networking.vpc.tags, each.value.tags, {
-    Name = "${var.networking.vpc.name}-${each.key}"
+  tags = merge({
+    ManagedBy   = "Terraform"
+    Project     = var.shared_configs.project_name
+    Environment = var.shared_configs.environment
+    }, var.networking.vpc.tags, each.value.tags, {
+    Name = "${var.shared_configs.project_name}-rtb-${each.key}"
   })
 }
 

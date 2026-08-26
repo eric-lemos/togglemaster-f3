@@ -1,5 +1,7 @@
 shared_configs = {
-  aws_region = "us-east-1"
+  aws_region   = "us-east-1"
+  project_name = "togglemaster"
+  environment  = "dev"
 }
 
 networking = {
@@ -87,6 +89,95 @@ networking = {
           nat_gateway_key = "b"
         }
       ]
+    }
+  }
+}
+
+security_groups = {
+  groups = {
+    eks-cluster = {
+      description = "Security group for EKS cluster"
+
+      ingress = [
+        {
+          description               = "Allow all traffic from itself"
+          from_port                 = 0
+          to_port                   = 0
+          protocol                  = "-1"
+          source_security_group_key = "eks-cluster"
+        },
+        {
+          description = "Allow NodePort range from internet"
+          from_port   = 30000
+          to_port     = 32767
+          protocol    = "tcp"
+          cidr_ipv4   = "0.0.0.0/0"
+        }
+      ]
+
+      egress = [
+        {
+          description = "Allow all outbound"
+          from_port   = 0
+          to_port     = 0
+          protocol    = "-1"
+          cidr_ipv4   = "0.0.0.0/0"
+        }
+      ]
+    }
+
+    rds = {
+      description = "Security group for RDS"
+
+      ingress = [
+        {
+          description               = "Allow PostgreSQL from EKS cluster SG"
+          from_port                 = 5432
+          to_port                   = 5432
+          protocol                  = "tcp"
+          source_security_group_key = "eks-cluster"
+        }
+      ]
+    }
+
+    redis = {
+      description = "Security group for Redis"
+
+      ingress = [
+        {
+          description               = "Allow Redis from EKS cluster SG"
+          from_port                 = 6379
+          to_port                   = 6379
+          protocol                  = "tcp"
+          source_security_group_key = "eks-cluster"
+        }
+      ]
+    }
+  }
+}
+
+eks = {
+  cluster = {
+    name                                        = "togglemaster-eks-cluster"
+    kubernetes_version                          = "1.35"
+    endpoint_public_access                      = true
+    endpoint_private_access                     = false
+    bootstrap_cluster_creator_admin_permissions = true
+  }
+
+  iam = {
+    role_name = "LabRole"
+  }
+
+  node_groups = {
+    ng1 = {
+      name           = "togglemaster-eks-ng1"
+      min_size       = 1
+      max_size       = 4
+      desired_size   = 2
+      ami_type       = "AL2023_x86_64_STANDARD"
+      instance_types = ["t3.medium"]
+      disk_size      = 20
     }
   }
 }

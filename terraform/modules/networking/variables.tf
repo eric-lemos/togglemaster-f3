@@ -1,3 +1,13 @@
+variable "shared_configs" {
+  description = "Global shared configuration used to standardize resource naming and tagging."
+
+  type = object({
+    aws_region   = string
+    project_name = string
+    environment  = string
+  })
+}
+
 variable "networking" {
   description = "Complete networking resources configuration (VPC, IGW, subnets, NAT gateways and route tables)."
 
