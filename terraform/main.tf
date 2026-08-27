@@ -1,38 +1,54 @@
 module "networking" {
-  source         = "./modules/networking"
-  shared_configs = var.shared_configs
-  networking     = var.networking
+  source     = "./modules/networking"
+  networking = var.networking
 }
 
 module "security_group" {
-  source         = "./modules/security_group"
-  shared_configs = var.shared_configs
+  source          = "./modules/security_group"
+  security_groups = var.security_groups
 
-  security_groups = merge(var.security_groups, {
-    vpc_id = module.networking.vpc_id
-  })
+  depends_on = [module.networking]
 }
 
-module "eks" {
-  source         = "./modules/eks"
-  shared_configs = var.shared_configs
+# module "eks" {
+#   source         = "./modules/eks"
+#   eks            = var.eks
 
-  eks = {
-    cluster = merge(var.eks.cluster, {
-      public_subnet_ids  = module.networking.public_subnet_ids
-      private_subnet_ids = module.networking.private_subnet_ids
-      security_group_ids = compact(concat(
-        var.eks.cluster.security_group_ids,
-        [try(module.security_group.security_group_ids["eks-cluster"], null)]
-      ))
-    })
+#   depends_on = [module.networking, module.security_group]
+# }
 
-    iam = var.eks.iam
+# module "rds" {
+#   source         = "./modules/rds"
 
-    node_groups = {
-      for k, ng in var.eks.node_groups : k => merge(ng, {
-        subnet_ids = ng.subnet_ids != null ? ng.subnet_ids : module.networking.private_subnet_ids
-      })
-    }
-  }
+#   rds = merge(var.rds, {
+#     instances = {
+#       for k, i in var.rds.instances : k => merge(i, {
+#         password = var.rds_instance_passwords[k]
+#       })
+#     }
+#   })
+
+#   depends_on = [module.networking, module.security_group]
+# }
+
+module "elasticache" {
+  source      = "./modules/elasticache"
+  elasticache = var.elasticache
+
+  depends_on = [module.networking, module.security_group]
+}
+
+module "dynamodb" {
+  source   = "./modules/dynamodb"
+  dynamodb = var.dynamodb
+}
+
+module "sqs" {
+  source = "./modules/sqs"
+  sqs    = var.sqs
+}
+
+module "ecr" {
+  source = "./modules/ecr"
+  ecr    = var.ecr
 }

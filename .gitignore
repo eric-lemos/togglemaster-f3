@@ -15,6 +15,9 @@ crash.*.log
 !*.auto.tfvars.example
 !terraform.tfvars.example
 
+# Local secrets (never commit real passwords)
+secrets.auto.tfvars
+
 # Override files
 override.tf
 override.tf.json

@@ -9,16 +9,20 @@ resource "aws_eks_cluster" "this" {
   }
 
   vpc_config {
-    subnet_ids              = concat(var.eks.cluster.public_subnet_ids, var.eks.cluster.private_subnet_ids)
-    security_group_ids      = var.eks.cluster.security_group_ids
+    subnet_ids = concat(
+      var.eks.cluster.public_subnet_ids,
+      var.eks.cluster.private_subnet_ids,
+      [for n in concat(var.eks.cluster.public_subnet_names, var.eks.cluster.private_subnet_names) : data.aws_subnet.by_name[n].id]
+    )
+    security_group_ids = concat(
+      var.eks.cluster.security_group_ids,
+      [for n in var.eks.cluster.security_group_names : data.aws_security_group.by_name[n].id]
+    )
     endpoint_public_access  = var.eks.cluster.endpoint_public_access
     endpoint_private_access = var.eks.cluster.endpoint_private_access
   }
 
   tags = merge(var.eks.cluster.tags, {
-    ManagedBy   = "Terraform"
-    Project     = var.shared_configs.project_name
-    Environment = var.shared_configs.environment
-    Name        = var.eks.cluster.name
+    Name = var.eks.cluster.name
   })
 }

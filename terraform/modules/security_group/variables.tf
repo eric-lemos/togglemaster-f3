@@ -1,19 +1,10 @@
-variable "shared_configs" {
-  description = "Global shared configuration used to standardize resource naming and tagging."
-
-  type = object({
-    aws_region   = string
-    project_name = string
-    environment  = string
-  })
-}
-
 variable "security_groups" {
   description = "Security groups configuration (group definitions and ingress/egress rules)."
 
   type = object({
-    vpc_id = string
-    tags   = optional(map(string), {})
+    vpc_id   = optional(string)
+    vpc_name = optional(string) # resolved to id via data source, by VPC Name tag
+    tags     = optional(map(string), {})
 
     # Map key = logical security group identifier (e.g. "alb", "api", "db")
     groups = map(object({
@@ -108,5 +99,10 @@ variable "security_groups" {
       ]
     ]))
     error_message = "egress.source_security_group_key must reference an existing key in security_groups.groups."
+  }
+
+  validation {
+    condition     = var.security_groups.vpc_id != null || var.security_groups.vpc_name != null
+    error_message = "security_groups must provide either vpc_id or vpc_name."
   }
 }

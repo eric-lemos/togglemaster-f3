@@ -5,7 +5,14 @@ resource "aws_eks_node_group" "this" {
 
   node_group_name = coalesce(each.value.name, each.key)
   node_role_arn   = var.eks.iam.node_role_arn != null ? var.eks.iam.node_role_arn : data.aws_iam_role.default[0].arn
-  subnet_ids      = coalesce(each.value.subnet_ids, var.eks.cluster.private_subnet_ids)
+
+  subnet_ids = length(each.value.subnet_ids) + length(each.value.subnet_names) > 0 ? concat(
+    each.value.subnet_ids,
+    [for n in each.value.subnet_names : data.aws_subnet.by_name[n].id]
+    ) : concat(
+    var.eks.cluster.private_subnet_ids,
+    [for n in var.eks.cluster.private_subnet_names : data.aws_subnet.by_name[n].id]
+  )
 
   scaling_config {
     desired_size = each.value.desired_size
@@ -15,13 +22,19 @@ resource "aws_eks_node_group" "this" {
 
   ami_type       = each.value.ami_type
   instance_types = each.value.instance_types
-  disk_size      = each.value.disk_size
+  # disk_size can't be set alongside a launch_template block.
+  disk_size = contains(keys(aws_launch_template.this), each.key) ? null : each.value.disk_size
+
+  dynamic "launch_template" {
+    for_each = contains(keys(aws_launch_template.this), each.key) ? [aws_launch_template.this[each.key]] : []
+    content {
+      id      = launch_template.value.id
+      version = launch_template.value.latest_version
+    }
+  }
 
   tags = merge(each.value.tags, {
-    ManagedBy   = "Terraform"
-    Project     = var.shared_configs.project_name
-    Environment = var.shared_configs.environment
-    Name        = coalesce(each.value.name, each.key)
+    Name = coalesce(each.value.name, each.key)
   })
 
   depends_on = [aws_eks_cluster.this]

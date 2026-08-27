@@ -6,18 +6,16 @@ resource "aws_route_table" "this" {
   dynamic "route" {
     for_each = each.value.routes
     content {
-      cidr_block     = route.value.cidr_block
-      gateway_id     = route.value.gateway_key == "igw" ? aws_internet_gateway.this[0].id : null
-      nat_gateway_id = route.value.nat_gateway_key != null ? aws_nat_gateway.this[route.value.nat_gateway_key].id : null
+      cidr_block = route.value.cidr_block
+      gateway_id = route.value.gateway_name == var.networking.igw.name ? aws_internet_gateway.this[0].id : null
+      nat_gateway_id = route.value.nat_gateway_name != null ? aws_nat_gateway.this[
+        { for nk, n in var.networking.natgw : coalesce(n.name, nk) => nk }[route.value.nat_gateway_name]
+      ].id : null
     }
   }
 
-  tags = merge({
-    ManagedBy   = "Terraform"
-    Project     = var.shared_configs.project_name
-    Environment = var.shared_configs.environment
-    }, var.networking.vpc.tags, each.value.tags, {
-    Name = "${var.shared_configs.project_name}-rtb-${each.key}"
+  tags = merge(var.networking.vpc.tags, each.value.tags, {
+    Name = coalesce(each.value.name, each.key)
   })
 }
 
@@ -25,7 +23,11 @@ resource "aws_route_table_association" "this" {
   for_each = {
     for pair in flatten([
       for rt_key, rt in var.networking.rtb : [
-        for sk in rt.subnet_keys : { key = "${rt_key}-${sk}", rt_key = rt_key, subnet_key = sk }
+        for sn in rt.subnet_names : {
+          key        = "${rt_key}-${sn}"
+          rt_key     = rt_key
+          subnet_key = { for sk, s in var.networking.subnet : coalesce(s.name, sk) => sk }[sn]
+        }
       ]
     ]) : pair.key => pair
   }

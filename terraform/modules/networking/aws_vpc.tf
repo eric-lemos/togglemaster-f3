@@ -3,11 +3,7 @@ resource "aws_vpc" "this" {
   enable_dns_support   = var.networking.vpc.enable_dns_support
   enable_dns_hostnames = var.networking.vpc.enable_dns_hostnames
 
-  tags = merge({
-    ManagedBy   = "Terraform"
-    Project     = var.shared_configs.project_name
-    Environment = var.shared_configs.environment
-    }, var.networking.vpc.tags, {
-    Name = "${var.shared_configs.project_name}-vpc"
+  tags = merge(var.networking.vpc.tags, {
+    Name = var.networking.vpc.name
   })
 }
