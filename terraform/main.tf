@@ -10,26 +10,26 @@ module "security_group" {
   depends_on = [module.networking]
 }
 
-# module "eks" {
-#   source         = "./modules/eks"
-#   eks            = var.eks
+module "eks" {
+  source = "./modules/eks"
+  eks    = var.eks
 
-#   depends_on = [module.networking, module.security_group]
-# }
+  depends_on = [module.networking, module.security_group]
+}
 
-# module "rds" {
-#   source         = "./modules/rds"
+module "rds" {
+  source = "./modules/rds"
 
-#   rds = merge(var.rds, {
-#     instances = {
-#       for k, i in var.rds.instances : k => merge(i, {
-#         password = var.rds_instance_passwords[k]
-#       })
-#     }
-#   })
+  rds = merge(var.rds, {
+    instances = {
+      for k, i in var.rds.instances : k => merge(i, {
+        password = var.rds_instance_passwords[k]
+      })
+    }
+  })
 
-#   depends_on = [module.networking, module.security_group]
-# }
+  depends_on = [module.networking, module.security_group]
+}
 
 module "elasticache" {
   source      = "./modules/elasticache"
