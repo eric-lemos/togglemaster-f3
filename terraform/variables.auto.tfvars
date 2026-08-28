@@ -224,19 +224,19 @@ rds = {
 
   instances = {
     auth = {
-      db_name              = "togglemaster-auth"
+      identifier           = "togglemaster-auth"
       username             = "auth_admin"
       security_group_names = ["togglemaster-rds-sg"]
     }
 
     evaluation = {
-      db_name              = "togglemaster-evaluation"
+      identifier           = "togglemaster-evaluation"
       username             = "evaluation_admin"
       security_group_names = ["togglemaster-rds-sg"]
     }
 
     flags = {
-      db_name              = "togglemaster-flags"
+      identifier           = "togglemaster-flags"
       username             = "flags_admin"
       security_group_names = ["togglemaster-rds-sg"]
     }

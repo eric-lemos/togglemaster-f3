@@ -164,12 +164,13 @@ variable "rds" {
 
     # Map key = logical DB instance identifier (e.g. "flags", "targeting")
     instances = map(object({
+      identifier                   = optional(string)
       engine                       = optional(string, "postgres")
       engine_version               = optional(string, "16.4")
       instance_class               = optional(string, "db.t3.micro")
       allocated_storage            = optional(number, 20)
       storage_encrypted            = optional(bool, true)
-      db_name                      = string
+      db_name                      = optional(string, "postgres")
       username                     = string
       security_group_ids           = optional(list(string), [])
       security_group_names         = optional(list(string), [])
@@ -184,6 +185,22 @@ variable "rds" {
 
     tags = optional(map(string), {})
   })
+
+  validation {
+    condition = alltrue([
+      for k, i in var.rds.instances :
+      can(regex("^[A-Za-z][A-Za-z0-9-]{0,62}$", coalesce(i.identifier, k)))
+    ])
+    error_message = "rds.instances.*.identifier must start with a letter and contain only letters, numbers or hyphens (up to 63 characters)."
+  }
+
+  validation {
+    condition = alltrue([
+      for k, i in var.rds.instances :
+      can(regex("^[A-Za-z][A-Za-z0-9]*$", i.db_name))
+    ])
+    error_message = "rds.instances.*.db_name must start with a letter and contain only alphanumeric characters."
+  }
 }
 
 # Never commit real values; supply via a gitignored secrets file (e.g. secrets.auto.tfvars) or TF_VAR_rds_instance_passwords.
@@ -195,6 +212,16 @@ variable "rds_instance_passwords" {
   validation {
     condition     = alltrue([for k, i in var.rds.instances : contains(keys(var.rds_instance_passwords), k)])
     error_message = "rds_instance_passwords must provide a password for every key defined in rds.instances."
+  }
+
+  validation {
+    condition = alltrue([
+      for k, password in var.rds_instance_passwords :
+      length(password) >= 8 &&
+      can(regex("^[\\x20-\\x7E]+$", password)) &&
+      !can(regex("[/@\" ]", password))
+    ])
+    error_message = "RDS passwords must contain at least 8 printable ASCII characters and must not contain '/', '@', '\"' or spaces."
   }
 }
 

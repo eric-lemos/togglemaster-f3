@@ -1,7 +1,7 @@
 resource "aws_db_instance" "this" {
   for_each = var.rds.instances
 
-  identifier     = each.value.db_name
+  identifier     = coalesce(each.value.identifier, each.key)
   engine         = each.value.engine
   engine_version = each.value.engine_version
   instance_class = each.value.instance_class
@@ -29,6 +29,6 @@ resource "aws_db_instance" "this" {
   performance_insights_enabled = each.value.performance_insights_enabled
 
   tags = merge(var.rds.tags, each.value.tags, {
-    Name = each.value.db_name
+    Name = coalesce(each.value.identifier, each.key)
   })
 }
