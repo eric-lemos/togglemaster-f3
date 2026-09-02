@@ -19,10 +19,16 @@ type CreateKeyResponse struct {
 	Message string `json:"message"`
 }
 
+func writeJSON(w http.ResponseWriter, status int, payload any) {
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		log.Printf("Erro ao escrever resposta JSON: %v", err)
+	}
+}
+
 // healthHandler é um simples endpoint de verificação de saúde
 func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // validateKeyHandler verifica se uma chave de API (enviada via Header) é válida
@@ -50,8 +56,7 @@ func (a *App) validateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Chave válida
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Chave válida"})
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Chave válida"})
 }
 
 // createKeyHandler cria uma nova chave de API
@@ -94,8 +99,7 @@ func (a *App) createKeyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Nova chave criada com sucesso (ID: %d, Name: %s)", newID, req.Name)
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(CreateKeyResponse{
+	writeJSON(w, http.StatusCreated, CreateKeyResponse{
 		Name:    req.Name,
 		Key:     newKey, // Retorna a chave em texto plano pela última vez
 		Message: "Guarde esta chave com segurança! Você não poderá vê-la novamente.",
