@@ -23,7 +23,7 @@ env:
 
 jobs:
   test:
-    name: Build & Unit Test
+    name: test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -48,7 +48,7 @@ jobs:
         run: go test ./... -count=1
 
   lint:
-    name: Linter / Static Analysis
+    name: lint
     runs-on: ubuntu-latest
     needs: test
     defaults:
@@ -67,11 +67,11 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.1.0
+          version: v2.13.2
           working-directory: apps/auth-service
 
   security:
-    name: SAST & SCA
+    name: security
     runs-on: ubuntu-latest
     needs: test
     defaults:
@@ -103,7 +103,7 @@ jobs:
           format: table
 
   build:
-    name: Docker Build, Scan & Push
+    name: build
     runs-on: ubuntu-latest
     needs:
       - lint
