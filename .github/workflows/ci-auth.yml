@@ -1,0 +1,160 @@
+name: CI Auth Service
+
+on:
+    pull_request:
+        paths:
+            - "apps/auth-service/**"
+            - ".github/workflows/ci-auth.yml"
+    push:
+        branches:
+            - main
+        paths:
+            - "apps/auth-service/**"
+            - ".github/workflows/ci-auth.yml"
+
+permissions:
+    contents: read
+
+env:
+    GO_VERSION: "1.21"
+    AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+    ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+    IMAGE_NAME: auth-service
+
+jobs:
+    test:
+        name: Build & Unit Test
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: apps/auth-service
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: ${{ env.GO_VERSION }}
+                  cache-dependency-path: apps/auth-service/go.sum
+
+            - name: Download dependencies
+              run: go mod download
+
+            - name: Compile
+              run: go build ./...
+
+            - name: Unit tests
+              run: go test ./... -count=1
+
+    lint:
+        name: Linter / Static Analysis
+        runs-on: ubuntu-latest
+        needs: test
+        defaults:
+            run:
+                working-directory: apps/auth-service
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: ${{ env.GO_VERSION }}
+                  cache-dependency-path: apps/auth-service/go.sum
+
+            - name: Run golangci-lint
+              uses: golangci/golangci-lint-action@v6
+              with:
+                  version: v1.61
+                  working-directory: apps/auth-service
+
+    security:
+        name: SAST & SCA
+        runs-on: ubuntu-latest
+        needs: test
+        defaults:
+            run:
+                working-directory: apps/auth-service
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: ${{ env.GO_VERSION }}
+                  cache-dependency-path: apps/auth-service/go.sum
+
+            - name: Run gosec (SAST)
+              uses: securego/gosec@master
+              with:
+                  args: ./apps/auth-service/...
+
+            - name: Run Trivy filesystem scan (SCA)
+              uses: aquasecurity/trivy-action@master
+              with:
+                  scan-type: fs
+                  scan-ref: apps/auth-service
+                  ignore-unfixed: true
+                  severity: CRITICAL
+                  exit-code: "1"
+                  format: table
+
+    build:
+        name: Docker Build, Scan & Push
+        runs-on: ubuntu-latest
+        needs:
+            - lint
+            - security
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Build image
+              run: docker build --tag "${{ env.IMAGE_NAME }}:${{ github.sha }}" apps/auth-service
+
+            - name: Scan image with Trivy
+              uses: aquasecurity/trivy-action@master
+              with:
+                  image-ref: "${{ env.IMAGE_NAME }}:${{ github.sha }}"
+                  ignore-unfixed: true
+                  severity: CRITICAL
+                  exit-code: "1"
+                  format: table
+
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+              with:
+                  aws-region: ${{ env.AWS_REGION }}
+                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+
+            - name: Log in to Amazon ECR
+              id: ecr-login
+              uses: aws-actions/amazon-ecr-login@v2
+              if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+            - name: Tag image with commit version
+              if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+              env:
+                  ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+                  IMAGE_TAG: v1.0.0-${{ github.sha }}
+              run: |
+                  docker tag "${{ env.IMAGE_NAME }}:${{ github.sha }}" "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+                  docker tag "${{ env.IMAGE_NAME }}:${{ github.sha }}" "${ECR_REGISTRY}/${ECR_REPOSITORY}:${{ github.sha }}"
+
+            - name: Push image to Amazon ECR
+              if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+              env:
+                  ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+                  IMAGE_TAG: v1.0.0-${{ github.sha }}
+              run: |
+                  docker push "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+                  docker push "${ECR_REGISTRY}/${ECR_REPOSITORY}:${{ github.sha }}"
